@@ -1,0 +1,494 @@
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////// PHASE (I) || GPS GUIDE || Marwa || Esraa || Seadouf //////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////// gps libraries ///////////////////////
+/////////////////////////////////////////////////////////////////////
+#include <SoftwareSerial.h>                            // Tx and Rx Connections Library
+#include <TinyGPS.h>                                   // The GPS Library
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////// compass libraries ///////////////////
+/////////////////////////////////////////////////////////////////////
+#include <Wire.h>                                      // The I2C Library for compass
+#include <HMC5883L.h>                                  // HMC5883L Compass Library
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////// gps definitions /////////////////////
+/////////////////////////////////////////////////////////////////////
+TinyGPS gps;
+SoftwareSerial nss(2,3);                               // Rx and Tx pins in use
+void gpsdump(TinyGPS &gps);
+bool feedgps();
+void getgps();
+void printFloat(double f, int digits = 2);
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////// compass definitions /////////////////
+/////////////////////////////////////////////////////////////////////
+HMC5883L compass;                                      // Store our compass as a variable.
+int error = 0;                                         // Record any errors that may occur in the compass.
+
+/////////////////////////////////////////////////////////////////////
+////////////////////////////// integrated definitions ///////////////
+/////////////////////////////////////////////////////////////////////
+float flat, flon, x2lat, x2lon;
+int x4=0;
+int HMC5883LAddress = 0x42;
+int slaveAddress;
+byte headingData[2];
+int i, headingValue;
+float headingTOO=0;
+int headingDegreesTOO;
+#define mo1 5
+#define mo2 7
+#define mo3 8
+#define mo4 10
+#define waypoints 5            // number of waypoints
+// For switching waypoints make multiple waypoints in your code
+// These waypoints will be changed according to our city (Alexandria)
+int waycont=1;
+float flat2= 31.20001;        // waypoint 1  
+float flon2= 29.91671;
+float flat3= 31.20002;        // waypoint 2
+float flon3= 29.91672;
+float flat4= 31.20003;        // waypoint 3
+float flon4= 29.91673;
+float flat5= 31.20004;        // waypoint 4
+float flon5= 29.91674;
+float flat6= 31.20005;        // waypoint 5
+float flon6= 29.91675;
+
+
+////////////////////////////////////////////////////////////////////////
+//////////////////////////////// the setup function ////////////////////
+////////////////////////////////////////////////////////////////////////
+void setup()                      // Our setup routine, here we will configure the microcontroller and compass.
+{
+  ////////////////////////////////////////////
+  ////////////// gps setup ///////////////////
+  ////////////////////////////////////////////
+  nss.begin(9600);
+  Serial.begin(9600);
+
+  ////////////////////////////////////////////
+  ////////////// compass setup ///////////////
+  ////////////////////////////////////////////
+  Serial.println("Starting the I2C interface.");
+  Wire.begin();                   // That is the first bit of the code combined. We are going to move back to "distance" now
+  Serial.println("Constructing new HMC5883L");
+  compass = HMC5883L();           // Construct a new HMC5883 compass.
+  Serial.println("Setting scale to +/- 1.3 Ga");
+  error = compass.SetScale(1.3);  // Set the scale of the compass.
+  if(error != 0)                  // If there is an error, print it out.
+  Serial.println(compass.GetErrorText(error));
+  Serial.println("Setting measurement mode to continous.");
+  error = compass.SetMeasurementMode(Measurement_Continuous);     // Set the measurement mode to Continuous
+  if(error != 0)                  // If there is an error, print it out.
+  Serial.println(compass.GetErrorText(error));
+  
+  ///////////////////////////////////////////
+  //////////// integrated setup /////////////
+  ///////////////////////////////////////////
+  slaveAddress = HMC5883LAddress;
+  pinMode(mo1, OUTPUT);           // #define mo1 5
+  pinMode(mo2, OUTPUT);           // #define mo2 7
+  pinMode(mo3, OUTPUT);           // #define mo3 8
+  pinMode(mo4, OUTPUT);           // #define mo4 10
+}
+
+/////////////////////////////////////////////////////////////////////////
+//////////////////////////////// the loop function //////////////////////
+/////////////////////////////////////////////////////////////////////////
+void loop()                       // Our main program loop
+{
+  /////////////////////////////////////////////
+  /////////////////////////// gps loop ////////
+  /////////////////////////////////////////////
+  getgps();
+  
+  /////////////////////////////////////////////
+  /////////////////////// Compass loop ////////
+  /////////////////////////////////////////////
+  // Retrive the raw values from the compass (not scaled).
+  MagnetometerRaw raw = compass.ReadRawAxis();
+  // Retrived the scaled values from the compass (scaled to the configured scale).
+  MagnetometerScaled scaled = compass.ReadScaledAxis();
+  // Values are accessed like so:
+  int MilliGauss_OnThe_XAxis = scaled.XAxis;// (or YAxis, or ZAxis)
+  // Calculate heading when the magnetometer is level, then correct for signs of axis.
+  float heading = atan2(scaled.YAxis, scaled.XAxis);
+  // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your location.
+  float declinationAngle = 0.06923;
+  heading += declinationAngle;
+  // Correct for when signs are reversed.
+  if(heading < 0)
+    heading += 2*PI;
+  // Check for wrap due to addition of declination.
+  if(heading > 2*PI)
+    heading -= 2*PI;
+  // Convert radians to degrees for readability.
+  float headingDegrees = heading * 180/M_PI; 
+  // Output the data via the serial port (call the output function)
+  Output(raw, scaled, heading, headingDegrees);
+  }
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////// GPS Function ////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////// get gps() function ///////////
+///////////////////////////////////////////////////////////////////////////
+void getgps(){
+  bool newdata = false;
+  unsigned long start = millis();
+  // Every one second we print an update
+  while (millis() - start < 1000)
+  {
+    if (feedgps())
+    newdata = true;
+  }
+  if (newdata)
+  {
+    Serial.println("Acquired Data");
+    Serial.println("-------------");
+    gpsdump(gps);
+    Serial.println();
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// GPS Function ///////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// gpsdump(...) function ////////////////////
+//////////////////////////////////////////////////////////////////////////////
+void gpsdump(TinyGPS &gps)
+{
+  long lat, lon;
+  float flat, flon;
+  unsigned long age, date, time, chars;
+  unsigned short sentences, failed;
+
+  gps.get_position(&lat, &lon, &age);
+  Serial.print("Lat/Long(10^-5 deg): "); 
+  Serial.print(lat); 
+  Serial.print(", "); 
+  Serial.print(lon); 
+  Serial.print(" Fix age: ");
+  Serial.print(age);
+  Serial.println("ms.");
+  
+  feedgps(); // If we don't feed the gps during this long routine, we may drop characters and get checksum errors
+
+  gps.f_get_position(&flat, &flon, &age);
+  Serial.print("Lat/Long(float): ");
+  printFloat(flat, 5); 
+  Serial.print(", "); 
+  printFloat(flon, 5);
+  Serial.print(" Fix age: "); 
+  Serial.print(age); 
+  Serial.println("ms.");
+
+  feedgps();
+  
+  Serial.print("Altitude(cm): "); 
+  Serial.print(gps.altitude()); 
+  Serial.print(" Course(10^-2 deg): "); 
+  Serial.print(gps.course()); 
+  Serial.print(" Speed(10^-2 knots): "); 
+  Serial.println(gps.speed());
+  Serial.print("Alt(float): "); 
+  printFloat(gps.f_altitude()); 
+  Serial.print(" Course(float): "); 
+  printFloat(gps.f_course()); 
+  Serial.println();
+  Serial.print("Speed(knots): "); 
+  printFloat(gps.f_speed_knots()); 
+  Serial.print(" (mph): ");  
+  printFloat(gps.f_speed_mph());
+  Serial.print(" (mps): "); 
+  printFloat(gps.f_speed_mps()); 
+  Serial.print(" (kmph): "); 
+  printFloat(gps.f_speed_kmph()); 
+  Serial.println();
+  float speedy=gps.f_speed_knots();
+  
+  feedgps();
+
+  gps.stats(&chars, &sentences, &failed);
+  Serial.print("Stats: characters: "); 
+  Serial.print(chars); 
+  Serial.print(" sentences: "); 
+  Serial.print(sentences); 
+  Serial.print(" failed checksum: "); 
+  Serial.println(failed);
+  
+  distance(); // call the function (distance)(below)
+}
+
+////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// GPS Function /////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+///////////////// this is the function of (boolean feedgps) ////////////////
+////////////////////////////////////////////////////////////////////////////
+bool feedgps()
+{
+  while (nss.available())
+  {
+    if (gps.encode(nss.read()))
+      return true;
+  }
+  return false;
+}
+
+/////////////////////////////////////////////////////////////////////////
+///////////////////////////////// GPS Function //////////////////////////
+/////////////////////////////////////////////////////////////////////////
+/////////////////// this function is printing the numbers ///////////////
+/////////////////////////////////////////////////////////////////////////
+void printFloat(double number, int digits)
+{
+  // Handle negative numbers
+  if (number < 0.0)
+  {
+     Serial.print('-');
+     number = -number;
+  }
+
+  // Round correctly so that print(1.999, 2) prints as "2.00"
+  double rounding = 0.5;
+  for (uint8_t i=0; i<digits; ++i)
+  rounding /= 10.0;
+  
+  number += rounding;
+
+  // Extract the integer part of the number and print it
+  unsigned long int_part = (unsigned long)number;
+  double remainder = number - (double)int_part;
+  Serial.print(int_part);
+
+  // Print the decimal point, but only if there are digits beyond
+  if (digits > 0)
+    Serial.print("."); 
+
+  // Extract digits from the remainder one at a time
+  while (digits-- > 0)
+  {
+    remainder *= 10.0;
+    int toPrint = int(remainder);
+    Serial.print(toPrint);
+    remainder -= toPrint; 
+  } 
+}
+  //////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////// Compass Function ///////////////////////
+  //////////////////////////////////////////////////////////////////////////
+  ///////////////// this is the output function for the compass loop ///////
+  //////////////////////////////////////////////////////////////////////////
+  
+  void Output(MagnetometerRaw raw, MagnetometerScaled scaled, float heading, float headingDegrees)
+{
+   Serial.print("Raw:\t");
+   Serial.print(raw.XAxis);
+   Serial.print("   ");   
+   Serial.print(raw.YAxis);
+   Serial.print("   ");   
+   Serial.print(raw.ZAxis);
+   Serial.print("   \tScaled:\t");
+   
+   Serial.print(scaled.XAxis);
+   Serial.print("   ");   
+   Serial.print(scaled.YAxis);
+   Serial.print("   ");   
+   Serial.print(scaled.ZAxis);
+
+   Serial.print("   \tHeading:\t");
+   Serial.print(heading);
+   Serial.print(" Radians   \t");
+   Serial.print(headingDegrees);
+   Serial.println(" Degrees   \t");
+   Serial.println();
+   headingDegreesTOO=headingDegrees;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Integration Function //////////////////////
+/////////////////////////////////////////////////////////////////////////////
+////////////// this is the function of going straight (straight) ////////////
+/////////////////////////////////////////////////////////////////////////////
+void straight(){
+  
+  digitalWrite(mo1, HIGH);                     // go straight 
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, HIGH);
+  digitalWrite(mo4, LOW);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Integration Function //////////////////////
+/////////////////////////////////////////////////////////////////////////////
+////////////// this is the function of turning right (rightturn) ////////////
+/////////////////////////////////////////////////////////////////////////////
+void rightturn(){
+  digitalWrite(mo1, LOW);                      // motor turning code
+  digitalWrite(mo2, LOW);   
+  digitalWrite(mo3, HIGH);
+  digitalWrite(mo4, LOW); 
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Integration Function ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+/////////////// this is the function of turning left (leftturn) ///////////////////
+///////////////////////////////////////////////////////////////////////////////////
+void leftturn(){
+  digitalWrite(mo1, HIGH);                    // motor turning code
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, LOW);
+  digitalWrite(mo4, LOW); 
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Integration Function ///////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// this is (done) function ///////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+void done(){
+  digitalWrite(mo1, LOW);   
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, LOW);
+  digitalWrite(mo4, LOW);
+  done();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Integration Function //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+///////////////////// this fuction (distance) will do all the calculations //////////
+/////////////////////////////////////////////////////////////////////////////////////
+void distance()
+{
+  if(waycont==1){
+    x2lat = flat2;      // setting x2lat and x2lon equal to our first waypoint
+    x2lon = flon2;   
+  }
+  if(waycont==2){
+    x2lat = flat3;      // setting x2lat and x2lon equal to our second waypoint
+    x2lon = flon3;
+  }
+  if(waycont==3){
+    x2lat = flat4;      // setting x2lat and x2lon equal to our third waypoint
+    x2lon = flon4;
+  }
+  if(waycont==4){
+    x2lat = flat5;      // setting x2lat and x2lon equal to our fourth waypoint
+    x2lon = flon5;
+  }
+  if(waycont==5){
+    x2lat = flat6;      // setting x2lat and x2lon equal to our fifth waypoint
+    x2lon = flon6;
+  }
+  
+  float flat1=flat;     // flat1 = our current latitude. flat is from the gps data. 
+  float flon1=flon;     // flon1 = our current longitude. flon is from the fps data.
+  float dist_calc=0;
+  float dist_calc2=0;
+  float diflat=0;
+  float diflon=0;
+  //x2lat=      ;       //enter a latitude point here   this is going to be your waypoint
+  //x2lon=      ;       // enter a longitude point here  this is going to be your waypoint
+  
+  // distance formula below >> Calculates distance from current location to waypoint
+  flat1=radians(flat1);             // convert current latitude to radians
+  x2lat=radians(x2lat);             // convert waypoint latitude to radians
+  diflat=radians(x2lat-flat1);      // notice it must be done in radians (the required location 
+  - my current location)
+  diflon=radians((x2lon)-(flon1));  // subtract and convert longitudes to radians
+  dist_calc=(sin(diflat/2.0)*sin(diflat/2.0));
+  dist_calc2=cos(flat1);
+  dist_calc2*=cos(x2lat);
+  dist_calc2*=sin(diflon/2.0);                                       
+  dist_calc2*=sin(diflon/2.0);
+  dist_calc+=dist_calc2;
+  dist_calc=(2*atan2(sqrt(dist_calc),sqrt(1.0-dist_calc)));
+  dist_calc*=6371000.0; //Converting to meters
+  Serial.println();
+  Serial.print("Distance (meters): ");
+  Serial.println(dist_calc); //print the distance in meters
+  
+  if(dist_calc<4){
+    if(waycont==waypoints){
+      done();
+    }
+    waycont+=1;
+  }
+  
+  // heading formula below >> Calculates heading to the waypoint from the current locaiton
+  flon1 = radians(flon1);  //also must be done in radians
+  x2lon = radians(x2lon);  //radians duh.
+  headingTOO = atan2(sin(x2lon-flon1)*cos(x2lat),cos(flat1)*sin(x2lat)-sin(flat1)*cos(x2lat)*cos(x2lon-flon1)),
+  2*3.1415926535;
+  headingTOO = headingTOO*180/3.1415926535;  // convert from radians to degrees
+  int head   = headingTOO; //make it a integer now
+  if(head<0)
+  {
+    headingTOO += 360;   //if the heading is negative then add 360 to make it positive
+  }
+  Serial.print("Wanted Heading: "); // depends on the next waypoint
+  Serial.println(headingTOO);       // print the heading.
+  
+  int turn=0;
+  Serial.print("Our Current Heading: ");
+  Serial.println(headingDegreesTOO);
+  
+  x4=headingDegreesTOO-headingTOO;   //getting the difference of our current heading to our needed 
+  Serial.print("Difference: ");
+  Serial.println(x4);
+
+
+
+  // below tells us which way we need to turn
+  if(x4>=180){   //set turn =8 which means "right"
+  turn=8;
+  }
+  if(x4>=-180){
+    if(x4<=0){
+      turn=8;    //set turn =8 which means "right"         
+    }
+  }
+  
+  if(x4<-180){
+    turn=5;      //set turn = 5 which means "left"
+  }
+  if(x4>=0)
+  {
+    if(x4<180)
+    {
+      turn=5;   //set turn = 5 which means "left"
+    }
+  }
+
+  if(x4==0)
+  {
+    turn=3;   //then set turn = 3 meaning go "straight"
+  }
+  
+  
+  if(turn==3)
+  {
+    straight();  // go straight
+  }
+  if(turn==8)
+  {
+    rightturn(); // turn right
+  }
+  if(turn==5)
+  {
+    leftturn();  // turn left
+  }
+}
+
+
