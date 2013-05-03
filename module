@@ -1,0 +1,110 @@
+#include <EtherCard.h>
+
+// ethernet mac address - must be unique on your network
+static byte mymac[] = { 0x74,0x69,0x69,0x2D,0x30,0x31 };
+// ethernet interface ip address
+static byte myip[] = { 192,168,1,5 };
+// gateway ip address
+static byte gwip[] = { 192,168,1,1 };
+
+byte Ethernet::buffer[2048]; // tcp/ip send and receive buffer
+
+int i =0;
+
+
+
+
+// Small web page to return so the request is completed
+char page[] PROGMEM =
+"HTTP/1.0 503 Service Unavailable\r\n"
+"Content-Type: text/html\r\n"
+"Retry-After: 600\r\n"
+"\r\n"
+"<html>"
+  "<head><title>"
+    "Arduino 192.168.1.5"
+  "</title></head>"
+  "<body>"
+    "<h3>Arduino 192.168.1.5</h3>"
+"<TABLE WIDTH='25%' BGCOLOR='#FEDCBA'><TR> "
+       "<TD COLSPAN='3'ALIGN='CENTER'><a href=\"/?up\"\"><INPUT TYPE='submit' VALUE='UP'></a><br></TD></TR> "
+       " <TR><TD ALIGN='LEFT'><a href=\"/?left\"\"><INPUT TYPE='submit' VALUE='LEFT'></a></TD>"
+       "<TD ALIGN='center'><a href=\"/?stop\"\"><INPUT TYPE='submit' VALUE='STOP'></a></TD><TD ALIGN='right'><a href=\"/?right\"\"><INPUT TYPE='submit' VALUE='RIGHT'></a></TD></TR><TR>"
+       "<TD COLSPAN='3'ALIGN='CENTER'><a href=\"/?down\"\"><INPUT TYPE='submit' VALUE='DOWN'></a><br></TD></TR></TABLE>"
+  "</body>"
+"</html>"
+;
+
+char gps[] PROGMEM =
+              
+             "HTTP/1.0 503 Service Unavailable\r\n"
+"Content-Type: text/html\r\n"
+"Retry-After: 600\r\n"
+"\r\n"
+              
+   
+              "<HTML><HEAD>"
+              
+              
+              "<TITLE>ARES-ENAYLIUS</TITLE>"
+              "</HEAD>"
+              "<BODY>"
+              "<H1 ALIGN='CENTER'>GPS Guided</H1>"
+              
+               //building the page
+             
+       " <br><br><br><br> <br><br><br><br><br><br><br><br><br><br><br> <br><br><br><br> <a href=\"/?end\"\"><INPUT TYPE='submit' VALUE='END'></a>"
+       " <FONT COLOR='#008080'><br><br><br><br><br> "
+       
+          "<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"
+              "<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"
+     
+              "</BODY></HTML>" 
+              ;
+void setup(){
+
+
+// Scary complex intializing of the EtherCard - I don't understand this stuff (yet0  
+  ether.begin(sizeof Ethernet::buffer, mymac);
+// Set IP using Static
+  ether.staticSetup(myip, gwip);
+  
+}
+
+void loop(){
+  
+  word len = ether.packetReceive();
+  word pos = ether.packetLoop(len);
+  
+
+// Check if data come
+
+if(word(pos)!=0){
+  if(strstr((char *)Ethernet::buffer + pos, "GET /?right") != 0) {
+     
+    }
+   if(strstr((char *)Ethernet::buffer + pos, "GET /?end") != 0) {
+      
+    }
+    if(strstr((char *)Ethernet::buffer + pos, "GET /?up") != 0) {
+      
+    }
+pos=0; // erase the recieved data 
+
+}
+
+// Feature Selector 
+if(i==0){
+    memcpy_P(ether.tcpOffset(), page, sizeof page);
+    ether.httpServerReply(sizeof page - 1);}
+    
+    if(i==1){
+    memcpy_P(ether.tcpOffset(), gps, sizeof page);
+    ether.httpServerReply(sizeof gps - 1);
+ }
+
+
+
+
+  
+}
