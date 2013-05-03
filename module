@@ -101,10 +101,5 @@ if(i==0){
     if(i==1){
     memcpy_P(ether.tcpOffset(), gps, sizeof page);
     ether.httpServerReply(sizeof gps - 1);
- }
-
-
-
-
-  
+ } 
 }
