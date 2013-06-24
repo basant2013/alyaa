@@ -1,0 +1,187 @@
+#define leftSensor   0
+#define nearleftsensor  1
+#define leftCenterSensor   2
+#define rightcenterSensor    3
+#define nearrightsensor  4
+#define rightSensor    5
+
+
+#define srightmotor  5
+#define brightmotor 6
+#define sleftmotor  9
+#define bleftmotor 10
+#define LED 2
+void setup(){
+    pinMode(LED, OUTPUT);
+
+  Serial.begin(9600);
+  pinMode(leftSensor, INPUT);
+  pinMode(nearleftsensor, INPUT);
+  pinMode(leftCenterSensor, INPUT);
+  pinMode(rightcenterSensor, INPUT);
+  pinMode(nearrightsensor, INPUT);
+  pinMode(rightSensor, INPUT);
+    
+  pinMode(srightmotor, OUTPUT);
+  pinMode(brightmotor, OUTPUT);
+  pinMode(sleftmotor, OUTPUT);
+  pinMode(bleftmotor, OUTPUT);
+ }
+   void loop(){
+    digitalWrite(LED , HIGH);
+    if (analogRead(rightSensor)<600 && analogRead(leftSensor)<600  )
+    {
+          if ( analogRead(nearleftsensor)>600){
+
+      analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 220); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);  
+    }
+           if (analogRead(leftCenterSensor)>600 && analogRead(nearleftsensor)>600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 220); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+               if (analogRead(leftCenterSensor)>600 && analogRead(nearleftsensor)>600&&analogRead(rightcenterSensor)>600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 220); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+           if (analogRead(leftCenterSensor)>600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 170); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+        if (analogRead(leftCenterSensor)>600 && analogRead(rightcenterSensor)>600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+    
+    
+            if ( analogRead(rightcenterSensor)>600){
+    analogWrite(srightmotor,170);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+            if (analogRead(nearrightsensor)>600 && analogRead(rightcenterSensor)>600){
+    analogWrite(srightmotor,220);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+            if ( analogRead(nearrightsensor)>600){
+
+      analogWrite(srightmotor,220);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+      
+    }
+                if (analogRead(nearrightsensor)>600 && analogRead(rightcenterSensor)>600&&analogRead(leftCenterSensor)>600){
+    analogWrite(srightmotor,220);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+            if (analogRead(leftCenterSensor)<600 && analogRead(rightcenterSensor)<600 && analogRead(nearrightsensor)<600 && analogRead(nearleftsensor)<600
+       && analogRead(rightSensor)<600 && analogRead(leftSensor)<600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    delay(50);
+    }
+    }
+    else{
+      turn();
+      
+   }
+       Serial.println( "rightsensor :");
+           Serial.println( analogRead(rightSensor));
+           Serial.println( "rightcenterSensor :");
+           Serial.println( analogRead(rightcenterSensor));
+           Serial.println( "nearrightsensor :");
+           Serial.println( analogRead(nearrightsensor));
+           Serial.println( "leftCenterSensor :");
+           Serial.println(analogRead(leftCenterSensor));
+           Serial.println( "nearleftsensor :");
+           Serial.println( analogRead(nearleftsensor));
+           Serial.println( "leftsensor :");
+           Serial.println( analogRead(leftSensor));
+  }
+   void turn(){
+     digitalWrite(LED , HIGH);
+               if ( analogRead(leftSensor)>600 && analogRead(rightSensor)<600){
+
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 0); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 255);
+
+      
+    }
+        if ( analogRead(nearleftsensor)>600  && analogRead(leftSensor)>600&& analogRead(rightSensor)<600){
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 0); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 255);
+        
+    }
+                 if (analogRead(leftCenterSensor)>600  && analogRead(nearleftsensor)>600  && analogRead(leftSensor)>600 && analogRead(rightSensor)<600){
+   analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    delay(500); 
+    analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 0); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 255);
+        delay(2550);
+      }
+      
+            if ( analogRead(rightSensor)>600 && analogRead(leftSensor)<600){
+
+    analogWrite(srightmotor,0);
+    analogWrite(brightmotor, 255);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+     
+    }
+               if ( analogRead(nearrightsensor)>600  && analogRead(rightSensor)>600 && analogRead(leftSensor)<600){  
+    analogWrite(srightmotor,0);
+    analogWrite(brightmotor, 255);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+           }
+           
+               if (analogRead(rightcenterSensor )>600  && analogRead(nearrightsensor)>600  && analogRead(rightSensor)>600 && analogRead(leftSensor)<600){
+   analogWrite(srightmotor,255);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    delay(500);
+    analogWrite(srightmotor,0);
+    analogWrite(brightmotor, 255);
+    analogWrite(sleftmotor, 255); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    delay(2550);
+
+             }
+    if (analogRead(leftCenterSensor)>600 && analogRead(rightcenterSensor)>600 && analogRead(nearrightsensor)>600 && analogRead(nearleftsensor)>600 && analogRead(leftSensor)>600
+    &&analogRead(rightSensor)>600){
+    analogWrite(srightmotor,0);
+    analogWrite(brightmotor, 0);
+    analogWrite(sleftmotor, 0); // analogRead values go from 0 to 1023,
+    analogWrite(bleftmotor, 0);
+    }
+    
+             
+   }
