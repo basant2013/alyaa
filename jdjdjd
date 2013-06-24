@@ -1,0 +1,877 @@
+// free memory till now 5933 byte 
+    
+    
+    #include <SPI.h>
+    #include <Ethernet.h>
+    #include <Servo.h> 
+    #include <MemoryFree.h>
+/////////////////////////////// gps libraries ///////////////////////
+#include <SoftwareSerial.h>                            // Tx and Rx Connections Library
+#include <TinyGPS.h>                                   // The GPS Library
+///////////////////////////////// compass libraries ///////////////////
+#include <Wire.h>                                      // The I2C Library for compass
+#include <HMC5883L.h>                                  // HMC5883L Compass Library
+///////////////////////////////// gps definitions /////////////////////
+TinyGPS gps;
+SoftwareSerial nss(65,66);                               // Rx and Tx pins in use
+void gpsdump(TinyGPS &gps);
+bool feedgps();
+void getgps();
+void printFloat(double f, int digits = 2);
+
+///////////////////////////////// compass definitions /////////////////
+HMC5883L compass;                                      // Store our compass as a variable.
+int error = 0;                                         // Record any errors that may occur in the compass.
+//////////////////////////////// integrated definitions ///////////////
+float flat, flon, x2lat, x2lon;
+int x4=0;
+int HMC5883LAddress = 0x42;
+int slaveAddress;
+byte headingData[2];
+int i, headingValue;
+float headingTOO=0;
+int headingDegreesTOO;
+#define mo1 5
+#define mo2 6
+#define mo3 8
+#define mo4 9
+int Enable=0;
+#define waypoints 5            // number of waypoints
+// For switching waypoints make multiple waypoints in your code
+// These waypoints will be changed according to our city (Alexandria)
+int waycont=1;
+float flat2= 31.20001;        // waypoint 1  
+float flon2= 29.91671;
+
+float dist_calc=0;
+     
+    int F_select=0; // feature Selector
+     
+    byte mac[] = { 0x90, 0xa2, 0xda, 0x0d, 0x4b, 0xdc }; //physical mac address
+    byte ip[] = { 192, 168, 1, 3 }; // ip in lan
+    byte gateway[] = { 192, 168, 1, 1 }; // internet access via router
+    byte subnet[] = { 255, 255, 255, 0 }; //subnet mask
+    EthernetServer server(80); //server port
+     
+    String readString; // Sting That Ethernet Read From Client
+ int Release=0;   
+Servo myservo1;  // create servo object to control a servo 
+                // a maximum of eight servo objects can be created 
+Servo myservo2;
+Servo myservo3;
+Servo myservo4;
+Servo myservo5;
+Servo myservo6;
+int pos = 0;    // variable to store the servo position
+
+ int pos1=115;
+  int pos5=60;
+  int pos4=50;
+  int pos6=10;
+  int pos2=50;
+  int pos3=170;
+   
+    //////////////////////
+     
+    void setup(){
+      Ethernet.begin(mac, ip, gateway, subnet);
+      server.begin();
+          myservo1.attach(28);  // attaches the servo on pin 9 to the servo object 
+  myservo2.attach(30);
+  myservo3.attach(32);
+  myservo4.attach(34);
+  myservo5.attach(36);
+  myservo6.attach(38);
+  myservo1.write(pos1);myservo2.write(pos2);myservo3.write(pos3);myservo4.write(pos4);myservo5.write(pos5);myservo6
+  write(pos6);
+  ////////////// gps setup ///////////////////
+  nss.begin(9600);
+  Serial.begin(9600);
+//  ////////////// compass setup ///////////////
+  Serial.println("Starting the I2C interface.");
+  Wire.begin();                   // That is the first bit of the code combined. We are going to move back to "distance"    
+
+  Serial.println("Constructing new HMC5883L");
+  compass = HMC5883L();           // Construct a new HMC5883 compass.
+  Serial.println("Setting scale to +/- 1.3 Ga");
+  error = compass.SetScale(1.3);  // Set the scale of the compass.
+  if(error != 0)                  // If there is an error, print it out.
+  Serial.println(compass.GetErrorText(error));
+  Serial.println("Setting measurement mode to continous.");
+ error = compass.SetMeasurementMode(Measurement_Continuous);     // Set the measurement mode to Continuous
+  if(error != 0)                  // If there is an error, print it out.
+  Serial.println(compass.GetErrorText(error));
+//  //////////// integrated setup /////////////
+  slaveAddress = HMC5883LAddress;
+  pinMode(mo1, OUTPUT);           // #define mo1 5
+  pinMode(mo2, OUTPUT);           // #define mo2 7
+  pinMode(mo3, OUTPUT);           // #define mo3 8
+  pinMode(mo4, OUTPUT);           // #define mo4 10
+//      
+
+     Serial.println("server LED test 1.0"); // so I can keep track of what is loaded
+          Serial.print("freeMemory()=");
+    Serial.println(freeMemory());
+   delay(500);}
+     
+    void loop(){
+      // Create a client connection
+      EthernetClient client = server.available();
+      if (client) {
+        while (client.connected()) {
+          if (client.available()) {
+            char c = client.read();
+     
+            //read char by char HTTP request
+            if (readString.length() < 100) {
+     
+              //store characters to string
+              readString += c;
+              //Serial.print(c);
+            }
+     
+            //if HTTP request has ended
+            if (c == '\n') {
+              // Check HTTP Request
+              if(readString.indexOf("?wireless") >0)//if Ture Go to Wireless Page 
+              {F_select=1;}
+               
+              if(readString.indexOf("?gps") >0)//checks for off
+              {F_select=2;
+               // gps code Here
+              }
+               if(readString.indexOf("?sound") >0){ F_select=3;}//code sound here
+           if(readString.indexOf("?mind") >0){F_select=4;}//code mind here 
+         if(readString.indexOf("?arm") >0){F_select=5;} // code face here
+         
+          if(readString.indexOf("?end") >0){F_select=0;
+        
+      Wire.beginTransmission(5);
+      Wire.write('L');
+      Wire.endTransmission();
+    digitalWrite(6, LOW);digitalWrite(7, LOW);digitalWrite(8, LOW);digitalWrite(9, LOW);} 
+    / return back to welcome screen to use another application
+           
+             // COntroling The Motor
+               
+            if(readString.indexOf("?up") >0){digitalWrite(6, HIGH);digitalWrite(7, LOW);digitalWrite(8, LOW);
+            igitalWrite(9, HIGH);}
+          if(readString.indexOf("?down") >0){digitalWrite(6, LOW);digitalWrite(7, HIGH);digitalWrite(8, HIGH);
+          igitalWrite(9, LOW);}
+          if(readString.indexOf("?left") >0){digitalWrite(6, HIGH);digitalWrite(7, LOW);digitalWrite(8, HIGH);
+          igitalWrite(9, LOW);}
+        if(readString.indexOf("?right") >0){digitalWrite(6, LOW);digitalWrite(7, HIGH);digitalWrite(8, LOW);
+        igitalWrite(9, HIGH);}
+        if(readString.indexOf("?stop") >0){digitalWrite(6, LOW);digitalWrite(7, LOW);digitalWrite(8, LOW);
+        igitalWrite(9, LOW);} 
+       Serial.println(readString);
+       
+     //clearing string for next read
+
+         if(readString.indexOf("?rest") >0){myservo1.write(65);myservo2.write(50);myservo3.write(170);myservo4
+         write(50);myservo5.write(0);myservo6.write(10);}
+             if(readString.indexOf("?gc") >0){pos6=pos6+10;
+    if(pos6>=180){
+       pos6=180;}
+    myservo6.write(pos6);}
+             if(readString.indexOf("?go") >0){ pos6=pos6-10;
+    if(pos6<=10){
+       pos6=10;}
+    myservo6.write(pos6);}
+             if(readString.indexOf("?wpr") >0){pos5=pos5+10;
+    if(pos5>=120){
+       pos5=120;}
+    myservo5.write(pos5);}
+             if(readString.indexOf("?wpl") >0){pos5=pos5-10;
+    if(pos5<=0){
+       pos5=0;}
+    myservo5.write(pos5);}
+             if(readString.indexOf("?wtd") >0){pos4=pos4-10;
+    if(pos4<=0){
+       pos4=0;}
+    myservo4.write(pos4);}
+             if(readString.indexOf("?wtu") >0){pos4=pos4+10;
+    if(pos4>=120){
+       pos4=120;}
+    myservo4.write(pos4);}
+             if(readString.indexOf("?ed") >0){pos3=pos3+10;
+    if(pos3>=170){
+       pos3=170;}
+    myservo3.write(pos3);}
+             if(readString.indexOf("?eu") >0){pos3=pos3-10;
+    if(pos3<=0){
+       pos3=0;}
+    myservo3.write(pos3);}
+             if(readString.indexOf("?sf") >0){pos2=pos2+10;
+    if(pos2>=180){
+       pos2=180;}
+    myservo2.write(pos2);}
+             if(readString.indexOf("?sb") >0){pos2=pos2-10;
+    if(pos2<=30){
+       pos2=30;}
+    myservo2.write(pos2);}
+             if(readString.indexOf("?bl") >0){pos1=pos1-10;
+    if(pos1<=50){
+       pos1=50;}
+    myservo1.write(pos1);}
+             if(readString.indexOf("?br") >0){pos1=pos1+10;
+    if(pos1>=180){
+       pos1=180;}
+    myservo1.write(pos1);}
+               
+           readString="";
+              
+              ///////////////
+              Serial.println(readString); //print to serial monitor for debuging
+            
+             // Wlcome Screen HTML Code
+              if(F_select==0)
+              {client.println(F("HTTP/1.1 200 OK")); //send new page
+              client.println(F("Content-Type: text/html"));
+              client.println();
+     
+              client.println(F("<HTML><HEAD>"));
+              
+              
+              client.println(F("<TITLE>ARES-ENAYLIUS</TITLE>"));
+              client.println(F("</HEAD>"));
+              client.println(F("<BODY>"));
+              client.println(F("<H1 ALIGN='CENTER'>ARES-ENYALIUS</H1>"));
+              client.println(F("<hr>"));
+              client.println(F("<br>"));
+             
+              client.println(F("<FONT FACE='IMPACT' SIZE='6'> <U>Select Feature: </U></FONT>"));
+              client.println(F("<FONT COLOR='#008080'>&nbsp&nbsp&nbsp&nbsp&nbsp<a href=\"/?wireless\"\"><FONT><INPUT 
+              YPE='submit' VALUE='Wireless Control'COLOR='YELLOW'</FONT></a><br>")); 
+              client.println(F("&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+              nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbsp
+              nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<a href=\"/?gps\"\">
+              INPUT TYPE='submit' VALUE='GPS Guided'></a><br>"));   
+         client.println(F("&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+         nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbsp&nbsp&nbsp&nbsp
+         nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp <a href=\"/?sound\"\"><INPUT TYPE='submit'
+         VALUE='Sound Processing'></a><br>"));  
+       client.println(F(" &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<a href=\"/?mind\"\"><INPUT TYPE='submit' 
+       ALUE='Mind Control'></a><br>"));
+       client.println(F(" &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp <a href=\"/?arm\"\"><INPUT TYPE='submit'
+       VALUE='Arm Control'></a><br>"));
+       client.println(F("&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbsp&nbsp&nbsp&nbsp
+       nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp <a href=\"/?line\"\"><INPUT TYPE='submit' 
+       ALUE='Line Follower'></a><br>   "));
+       client.println(F(" <br><br><br><br><br><br><br> <br><br><br><br><a href=\"/?end\"\"><INPUT TYPE='submit' 
+       ALUE='END'></a>"));
+      
+       
+         client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"));
+              client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"));
+     
+              client.println(F("</BODY></HTML>"));
+               delay(1);
+              //stopping client
+              client.stop();
+              }
+            if(F_select==1) // Wireless Control and Live Broadcast Page
+          {
+            client.println(F("HTTP/1.1 200 OK")); //send new web page
+              client.println(F("Content-Type: text/html"));
+              client.println();
+   
+              client.println(F("<HTML><HEAD>"));
+              
+              
+              client.println(F("<TITLE>ARES-ENAYLIUS</TITLE>"));
+              client.println(F("</HEAD>"));
+              client.println(F("<BODY>"));
+              client.println(F("<H1 ALIGN='CENTER'>Wireless Control & Live Broadcast</H1>"));
+              client.println(F("<hr>"));
+              client.println(F("<br>"));
+          
+          client.println(F(" <P><FONT FACE='IMPACT' SIZE='6'><U> Direction </U></FONT></P>"));
+       client.println(F(" <iframe ALIGN='right'src='' width='50%' height='50%'></iframe>"));
+       client.println(F("<TABLE WIDTH='25%' BGCOLOR='#FEDCBA'><TR> "));
+       client.println(F("<TD COLSPAN='3'ALIGN='CENTER'><a href='/?up' id='up'><INPUT TYPE='submit' VALUE='UP'></a>
+       br></TD></TR> "));
+       client.println(F(" <TR><TD ALIGN='LEFT'><a href='/?left' id='left'><INPUT TYPE='submit' VALUE='LEFT'></a>
+       /TD>"));
+       client.println(F("<TD ALIGN='center'><a href='/?stop' id='stop'><INPUT TYPE='submit' VALUE='STOP'></a></TD>
+       TD ALIGN='right'><a href='/?right' id='right'><INPUT TYPE='submit' VALUE='RIGHT'></a></TD></TR><TR>"));
+       client.println(F("<TD COLSPAN='3'ALIGN='CENTER'><a href='/?down' id='down'><INPUT TYPE='submit' VALUE='DOWN'>
+       /a><br></TD></TR></TABLE>"));
+      
+      //////////////////////////
+                client.println(F("<P><FONT FACE='IMPACT' SIZE='6'><U> Arm Control</U></FONT>    </P>"));
+              
+              
+client.println(F("<TABLE WIDTH='25%' BGCOLOR='#FEDCBA'>"));
+
+client.println(F("<TR><TD ALIGN='CENTER'>Gripper </TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?go\"\"><INPUT TYPE='submit' VALUE='Open'></a><br> 
+</TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?gc\"\"><INPUT TYPE='submit' VALUE='Close'></a><br> 
+</TD></TR>"));
+
+client.println(F("<TR><TD ALIGN='CENTER'>Wrist (Tilt)</TD>>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?wtu\"\"><INPUT TYPE='submit' VALUE='Up'></a><br>  </TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?wtd\"\"><INPUT TYPE='submit' VALUE='Down'></a><br>  </TD>
+/TR>"));
+
+
+client.println(F("<TR><TD ALIGN='CENTER'>Wrist (Pan) "));
+ client.println(F("</TD><TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?wpl\"\"><INPUT TYPE='submit' VALUE='Left'></a><br> 
+ </TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?wpr\"\"><INPUT TYPE='submit' VALUE='Right'></a><br>  
+/TD></TR>"));
+
+client.println(F("<TR><TD ALIGN='CENTER'>Elbow </TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?eu\"\"><INPUT TYPE='submit' VALUE='Up'></a><br> 
+</TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?ed\"\"><INPUT TYPE='submit' VALUE='Down'></a><br>  
+/TD></TR>"));
+
+client.println(F("<TR><TD ALIGN='CENTER'>Shoulder </TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?sf\"\"><INPUT TYPE='submit' VALUE='Forward'></a><br>  
+/TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?sb\"\"><INPUT TYPE='submit' VALUE='Backward'></a><br> 
+</TD></TR>"));
+
+client.println(F("<TR><TD ALIGN='CENTER'>Base (Rotate)</TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?bl\"\"><INPUT TYPE='submit' VALUE='Left'></a><br>  
+/TD>"));
+client.println(F("<TD COLSPAN='2'ALIGN='CENTER'><a href=\"/?br\"\"><INPUT TYPE='submit' VALUE='Right'></a><br>  
+/TD></TR></TABLE>"));
+              
+               //building the page
+             
+       client.println(F(" <br><br><br><br><br><br><br> <br><br><br><br> <a href=\"/?end\"\"><INPUT TYPE='submit'
+       VALUE='END'></a>"));
+       client.println(F("<br> <a href=\"/?rest\"\"><INPUT TYPE='submit' VALUE='Rest'></a>"));
+       client.println(F(" <FONT COLOR='#008080'><br><br><br><br><br> "));    //////////////////////////////   
+          client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"));
+              client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"));
+     client.println(F("<script type='text/javascript'>"));
+  client.println(F("window.onload = function()"));
+	client.println(F("{document.onkeyup = function(event)"));
+		client.println(F("{var e = (!event) ? window.event : event;"));
+			client.println(F("switch(e.keyCode){"));
+				client.println(F("case 37:"));
+					client.println(F("window.location.href = document.getElementById('left').href;"));
+					client.println(F("break;"));
+				client.println(F("case 39:"));
+					client.println(F("window.location.href = document.getElementById('right').href;"));
+					client.println(F("break;"));
+				client.println(F("case 38:"));
+					client.println(F("window.location.href = document.getElementById('up').href;"));
+					client.println(F("break;"));
+                                client.println(F("case 40:"));
+                                       client.println(F(" window.location.href = document.getElementById('down')
+                                       href;"));
+                                      client.println(F("break;"));
+
+                                client.println(F("case 32:"));
+                                        client.println(F("window.location.href = document.getElementById('stop')
+                                        href;"));
+                                       client.println(F(" break;"));
+				client.println(F("case 27:"));
+                                       client.println(F(" window.location.href = document.getElementById('end')
+                                       href;"));
+                                       client.println(F(" break;}};};</script>"));
+
+              client.println(F("</BODY></HTML>"));
+          
+          delay(1);
+          client.stop();}
+          
+     if(F_select==2) // gps guided
+          {
+            client.println(F("HTTP/1.1 201 OK")); //send new page
+              client.println(F("Content-Type: text/html"));
+              client.println();
+              client.println(F("<HTML><HEAD>"));
+              client.println(F("<TITLE>ARES-ENAYLIUS</TITLE>"));
+              client.println(F("</HEAD>"));
+              client.println(F("<BODY>"));
+              client.println(F("<H1 ALIGN='CENTER'>GPS Guided</H1>"));
+              client.println(F("Difference: "));
+ client.print(x4);
+ client.println(F(" <meta http-equiv='refresh' content='2' > "));
+client.println(F("Distance (meters): "));
+  client.println(dist_calc); //print the distance in meters
+               //building the page
+             
+       client.println(F(" <br><br><br><br> <br><br><br><br><br><br><br><br><br><br><br> <br><br><br><br>
+       <a href=\"/?end\"\"><INPUT TYPE='submit' VALUE='END'></a>"));
+       client.println(F(" <FONT COLOR='#008080'><br><br><br><br><br> "));
+       
+          client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"));
+              client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"));
+     
+              client.println(F("</BODY></HTML>"));
+          
+          delay(1);
+          client.stop();}  
+              if(F_select==3) // sound processing
+          {
+            client.println(F("HTTP/1.1 201 OK")); //send new page
+              client.println(F("Content-Type: text/html"));
+              client.println();
+              client.println(F("<HTML><HEAD>"));
+              client.println(F("<TITLE>ARES-ENAYLIUS</TITLE>"));
+              client.println(F("</HEAD>"));
+              client.println(F("<BODY>"));
+              client.println(F("<H1 ALIGN='CENTER'>Sound Processing</H1>"));
+              
+               //building the page
+             
+       client.println(F("  <br><br><br><br> <br><br><br><br><br><br><br><br><br><br><br> <br><br><br><br>
+       a href=\"/?end\"\"><INPUT TYPE='submit' VALUE='END'></a>"));
+       client.println(F(" <FONT COLOR='#008080'><br><br><br><br><br> "));
+       
+          client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"));
+              client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"));
+     
+              client.println(F("</BODY></HTML>"));
+          
+          delay(1);
+          client.stop();}
+             
+              if(F_select==4) // Mind Control 
+          {
+            client.println(F("HTTP/1.1 201 OK")); //send new page
+              client.println(F("Content-Type: text/html"));
+              client.println();
+              client.println(F("<HTML><HEAD>"));
+              client.println(F("<TITLE>ARES-ENAYLIUS</TITLE>"));
+              client.println(F("</HEAD>"));
+              client.println(F("<BODY>"));
+              client.println(F("<H1 ALIGN='CENTER'>Mind Control </H1>"));
+               //building the page
+       client.println(F(" <br><br><br><br> <br><br><br><br><br><br><br><br><br><br><br> <br><br><br><br>
+       <a href=\"/?end\"\"><INPUT TYPE='submit' VALUE='END'></a>"));
+       client.println(F(" <FONT COLOR='#008080'><br><br><br><br><br> "));
+       
+          client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='4'> Designed By </FONT>    </P>"));
+              client.println(F("<P ALIGN='right'><FONT FACE='IMPACT' SIZE='6'> EAGLES </FONT>    </P>"));
+     
+              client.println(F("</BODY></HTML>"));
+          
+          delay(1);
+          client.stop();}
+                           }
+          }
+          }
+          }
+          if(F_select==2) 
+          {
+  /////////////////////////// gps loop ////////
+  getgps();
+  /////////////////////// Compass loop ////////
+  // Retrive the raw values from the compass (not scaled).
+  MagnetometerRaw raw = compass.ReadRawAxis();
+  // Retrived the scaled values from the compass (scaled to the configured scale).
+  MagnetometerScaled scaled = compass.ReadScaledAxis();
+  // Values are accessed like so:
+  int MilliGauss_OnThe_XAxis = scaled.XAxis;// (or YAxis, or ZAxis)
+  // Calculate heading when the magnetometer is level, then correct for signs of axis.
+  float heading = atan2(scaled.YAxis, scaled.XAxis);
+  // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic
+  field in your location.
+  float declinationAngle = 0.06923;
+  heading += declinationAngle;
+  // Correct for when signs are reversed.
+  if(heading < 0)
+    heading += 2*PI;
+  // Check for wrap due to addition of declination.
+  if(heading > 2*PI)
+    heading -= 2*PI;
+  // Convert radians to degrees for readability.
+  float headingDegrees = heading * 180/M_PI; 
+  // Output the data via the serial port (call the output function)
+  Output(raw, scaled, heading, headingDegrees);}
+
+  if(F_select==3){
+  
+   Wire.beginTransmission(5);
+      Wire.write('H');
+      Wire.endTransmission();
+
+Wire.requestFrom(5, 1);    // request 1 bytes from slave device #5
+
+  while(Wire.available())    // slave may send less than requested
+  {
+    char c = Wire.read(); // receive a byte as character
+         if(c == 'F'){
+         
+         }
+         
+         else if(c == 'U')
+          {
+          Release==1;
+          }   // print the character
+     else if(c == 'S')
+    {
+      Serial.println("hhh");
+      Enable=1;
+    }
+    else if(c == 'N')
+    {
+      Enable=0;
+    }
+  }}
+  
+  if (Release==1){
+    for(pos = 110; pos>=20; pos-=1)  
+  {                                  
+    myservo6.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  }
+  
+  // relaseing object here ***************************************************************************************
+   Wire.beginTransmission(5);
+      Wire.write('F');
+      Wire.endTransmission();}
+if(Enable==1){
+
+ for(pos = 160; pos>=100; pos-=1)  // goes from 0 degrees to 180 degrees 
+  {                                  // in steps of 1 degree 
+    myservo3.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  } 
+       // goes from 180 degrees to 0 degrees
+      for(pos = 0; pos < 120; pos += 1) 
+  {                                
+    myservo2.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  } 
+     for(pos = 45; pos < 110; pos += 1) 
+  {                                
+    myservo4.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  } 
+     for(pos = 0; pos < 90; pos += 1) 
+  {                                
+    myservo5.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  } 
+     for(pos = 20; pos < 110; pos += 1) 
+  {                                  
+    myservo6.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  } 
+      for(pos = 110; pos < 180; pos += 1) 
+  {                                
+    myservo4.write(pos);              // tell servo to go to position in variable 'pos' 
+    delay(90);                       // waits 15ms for the servo to reach the position 
+  }
+Wire.beginTransmission(5);
+      Wire.write('R');
+      Wire.endTransmission();
+}
+
+
+
+
+} // voiiiiiiiiiiiiiiiiiiiid loooooooooooooooooooooooooooooooooooooooppppp END
+      
+    
+    void getgps(){
+  bool newdata = false;
+  unsigned long start = millis();
+  // Every one second we print an update
+  while (millis() - start < 10)
+  {
+    if (feedgps())
+    newdata = true;
+  }
+  if (newdata)
+  {
+    Serial.println("Acquired Data");
+    Serial.println("-------------");
+    gpsdump(gps);
+    Serial.println();
+  }
+}
+
+///////////////////////////////// GPS Function ///////////////////////////////
+/////////////////////////////////// gpsdump(...) function ////////////////////
+void gpsdump(TinyGPS &gps)
+{
+  long lat, lon;
+  //float flat, flon;
+  unsigned long age, date, time, chars;
+  unsigned short sentences, failed;
+
+  gps.get_position(&lat, &lon, &age);
+  Serial.print("Lat/Long(10^-5 deg): "); 
+  Serial.print(lat); 
+  Serial.print(", "); 
+  Serial.print(lon); 
+  Serial.print(" Fix age: ");
+  Serial.print(age);
+  Serial.println("ms.");
+  
+  feedgps(); // If we don't feed the gps during this long routine, we may drop characters and get checksum errors
+
+  gps.f_get_position(&flat, &flon, &age);
+  Serial.print("Lat/Long(float): ");
+  printFloat(flat, 5); 
+  Serial.print(", "); 
+  printFloat(flon, 5);
+  Serial.print(" Fix age: "); 
+  Serial.print(age); 
+  Serial.println("ms.");
+
+  feedgps();
+  
+  Serial.print("Altitude(cm): "); 
+  Serial.print(gps.altitude()); 
+  Serial.print(" Course(10^-2 deg): "); 
+  Serial.print(gps.course()); 
+  Serial.print(" Speed(10^-2 knots): "); 
+  Serial.println(gps.speed());
+  Serial.print("Alt(float): "); 
+  printFloat(gps.f_altitude()); 
+  Serial.print(" Course(float): "); 
+  printFloat(gps.f_course()); 
+  Serial.println();
+  Serial.print("Speed(knots): "); 
+  printFloat(gps.f_speed_knots()); 
+  Serial.print(" (mph): ");  
+  printFloat(gps.f_speed_mph());
+  Serial.print(" (mps): "); 
+  printFloat(gps.f_speed_mps()); 
+  Serial.print(" (kmph): "); 
+  printFloat(gps.f_speed_kmph()); 
+  Serial.println();
+  float speedy=gps.f_speed_knots();
+  
+  feedgps();
+
+  gps.stats(&chars, &sentences, &failed);
+  Serial.print("Stats: characters: "); 
+  Serial.print(chars); 
+  Serial.print(" sentences: "); 
+  Serial.print(sentences); 
+  Serial.print(" failed checksum: "); 
+  Serial.println(failed);
+  
+  distance(); // call the function (distance)(below)
+}
+///////////////////////////////// GPS Function //////////////////////////////
+///////////////// this is the function of (boolean feedgps) ////////////////
+bool feedgps()
+{
+  while (nss.available())
+  {
+    if (gps.encode(nss.read()))
+      return true;
+  }
+  return false;
+}
+///////////////////////////////// GPS Function //////////////////////////
+/////////////////// this function is printing the numbers ///////////////
+void printFloat(double number, int digits)
+{
+  // Handle negative numbers
+  if (number < 0.0)
+  {
+     Serial.print('-');
+     number = -number;
+  }
+
+  // Round correctly so that print(1.999, 2) prints as "2.00"
+  double rounding = 0.5;
+  for (uint8_t i=0; i<digits; ++i)
+  rounding /= 10.0;
+  
+  number += rounding;
+
+  // Extract the integer part of the number and print it
+  unsigned long int_part = (unsigned long)number;
+  double remainder = number - (double)int_part;
+  Serial.print(int_part);
+
+  // Print the decimal point, but only if there are digits beyond
+  if (digits > 0)
+    Serial.print("."); 
+
+  // Extract digits from the remainder one at a time
+  while (digits-- > 0)
+  {
+    remainder *= 10.0;
+    int toPrint = int(remainder);
+    Serial.print(toPrint);
+    remainder -= toPrint; 
+  } 
+}
+  ///////////////////////////////// Compass Function ///////////////////////
+  ///////////////// this is the output function for the compass loop ///////
+  
+   void Output(MagnetometerRaw raw, MagnetometerScaled scaled, float heading, float headingDegrees)
+{
+   Serial.print("Raw:\t");
+   Serial.print(raw.XAxis);
+   Serial.print("   ");   
+   Serial.print(raw.YAxis);
+   Serial.print("   ");   
+   Serial.print(raw.ZAxis);
+   Serial.print("   \tScaled:\t");
+   
+   Serial.print(scaled.XAxis);
+   Serial.print("   ");   
+   Serial.print(scaled.YAxis);
+   Serial.print("   ");   
+   Serial.print(scaled.ZAxis);
+
+   Serial.print("   \tHeading:\t");
+   Serial.print(heading);
+   Serial.print(" Radians   \t");
+   Serial.print(headingDegrees);
+   Serial.println(" Degrees   \t");
+   Serial.println();
+   headingDegreesTOO=headingDegrees;
+}
+///////////////////////////////// Integration Function //////////////////////
+////////////// this is the function of going straight (straight) ////////////
+void straight(){
+  
+  digitalWrite(mo1, HIGH);                     // go straight 
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, HIGH);
+  digitalWrite(mo4, LOW);
+}
+
+///////////////////////////////// Integration Function //////////////////////
+////////////// this is the function of turning right (rightturn) ////////////
+void rightturn(){
+  digitalWrite(mo1, LOW);                      // motor turning code
+  digitalWrite(mo2, LOW);   
+  digitalWrite(mo3, HIGH);
+  digitalWrite(mo4, LOW); 
+}
+///////////////////////////////// Integration Function ////////////////////////////
+/////////////// this is the function of turning left (leftturn) ///////////////////
+void leftturn(){
+  digitalWrite(mo1, HIGH);                    // motor turning code
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, LOW);
+  digitalWrite(mo4, LOW); 
+}
+///////////////////////////////// Integration Function ///////////////////////////
+////////////////////////////// this is (done) function ///////////////////////////
+void done(){
+  digitalWrite(mo1, LOW);   
+  digitalWrite(mo2, LOW);
+  digitalWrite(mo3, LOW);
+  digitalWrite(mo4, LOW);
+  done();
+}
+///////////////////////////////// Integration Function //////////////////////////////
+///////////////////// this fuction (distance) will do all the calculations //////////
+void distance()
+{
+  if(waycont==1){
+    x2lat = flat2;      // setting x2lat and x2lon equal to our first waypoint
+    x2lon = flon2;   
+  }
+  float flat1=flat;     // flat1 = our current latitude. flat is from the gps data. 
+  float flon1=flon;     // flon1 = our current longitude. flon is from the fps data.
+  
+  float dist_calc2=0;
+  float diflat=0;
+  float diflon=0;
+  //x2lat=      ;       //enter a latitude point here   this is going to be your waypoint
+  //x2lon=      ;       // enter a longitude point here  this is going to be your waypoint
+  
+  // distance formula below >> Calculates distance from current location to waypoint
+  flat1=radians(flat1);             // convert current latitude to radians
+  x2lat=radians(x2lat);             // convert waypoint latitude to radians
+  diflat=radians(x2lat-flat1);      // notice it must be done in radians (the required location - my current location)
+  diflon=radians((x2lon)-(flon1));  // subtract and convert longitudes to radians
+  dist_calc=(sin(diflat/2.0)*sin(diflat/2.0));
+  dist_calc2=cos(flat1);
+  dist_calc2*=cos(x2lat);
+  dist_calc2*=sin(diflon/2.0);                                       
+  dist_calc2*=sin(diflon/2.0);
+  dist_calc+=dist_calc2;
+  dist_calc=(2*atan2(sqrt(dist_calc),sqrt(1.0-dist_calc)));
+  dist_calc*=6371000.0; //Converting to meters
+  Serial.println();
+  Serial.print("Distance (meters): ");
+  Serial.println(dist_calc); //print the distance in meters
+  
+  if(dist_calc<4){
+    if(waycont==waypoints){
+      done();
+    }
+    waycont+=1;
+  }
+  
+  // heading formula below >> Calculates heading to the waypoint from the current locaiton
+  flon1 = radians(flon1);  //also must be done in radians
+  x2lon = radians(x2lon);  //radians duh.
+  headingTOO = atan2(sin(x2lon-flon1)*cos(x2lat),cos(flat1)*sin(x2lat)-sin(flat1)*cos(x2lat)*cos(x2lon-flon1)),
+  *3.1415926535;
+  headingTOO = headingTOO*180/3.1415926535;  // convert from radians to degrees
+  int head   = headingTOO; //make it a integer now
+  if(head<0)
+  {
+    headingTOO += 360;   //if the heading is negative then add 360 to make it positive
+  }
+  Serial.print("Wanted Heading: "); // depends on the next waypoint
+  Serial.println(headingTOO);       // print the heading.
+  
+  int turn=0;
+  Serial.print("Our Current Heading: ");
+  Serial.println(headingDegreesTOO);
+  
+  x4=headingDegreesTOO-headingTOO;   //getting the difference of our current heading to our needed 
+  Serial.print("Difference: ");
+  Serial.println(x4);
+  // below tells us which way we need to turn
+  if(x4>=180){   //set turn =8 which means "right"
+  turn=8;
+  }
+  if(x4>=-180){
+    if(x4<=0){
+      turn=8;    //set turn =8 which means "right"         
+    }
+  }
+  
+  if(x4<-180){
+    turn=5;      //set turn = 5 which means "left"
+  }
+  if(x4>=0)
+  {
+    if(x4<180)
+    {
+      turn=5;   //set turn = 5 which means "left"
+    }
+  }
+
+  if(x4>=-10 && x4<=10)
+  {
+    turn=3;   //then set turn = 3 meaning go "straight"
+  }
+  
+  
+  if(turn==3)
+  {
+    straight();  // go straight
+  }
+  if(turn==8)
+  {
+    rightturn(); // turn right
+  }
+  if(turn==5)
+  {
+    leftturn();  // turn left
+  }
+}
+
+
+
